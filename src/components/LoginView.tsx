@@ -175,7 +175,7 @@ const LoginView = ({ connectWallet, onAuthSuccess }: LoginViewProps) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-accent rounded-2xl mb-4">
             <Wallet className="w-8 h-8 text-accent-foreground" />
           </div>
-          <h2 className="text-3xl font-bold text-foreground mb-2">Welcome to LandChain</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-2">Welcome to ResQ-Land</h2>
           <p className="text-muted-foreground">Secure blockchain-based land registry system</p>
         </div>
 

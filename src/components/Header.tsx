@@ -16,7 +16,7 @@ const Header = ({ theme, toggleTheme, walletAddress }: HeaderProps) => {
             <Wallet className="w-6 h-6 text-accent-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">LandChain Registry</h1>
+            <h1 className="text-xl font-bold text-foreground">ResQ-Land</h1>
             <p className="text-xs text-muted-foreground">Blockchain Land Management</p>
           </div>
         </div>

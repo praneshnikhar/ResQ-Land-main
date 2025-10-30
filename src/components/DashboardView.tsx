@@ -25,6 +25,7 @@ const DashboardView = ({ setCurrentPage }: DashboardViewProps) => {
     const parcels: LandParcel[] = saved ? JSON.parse(saved) : [];
     // Get the 3 most recent parcels
     setRecentParcels(parcels.slice(-3).reverse());
+    
   }, []);
 
   return (
