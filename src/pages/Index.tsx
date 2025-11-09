@@ -1,9 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   BrowserProvider,
-  JsonRpcProvider,
   Contract,
   AbstractProvider,
 } from "ethers";
@@ -47,8 +45,6 @@ const CONTRACT_ABI = [
   },
 ];
 
-const RPC_URL = "http://127.0.0.1:8545";
-
 const Index = () => {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("theme");
@@ -64,7 +60,7 @@ const Index = () => {
   const [provider, setProvider] = useState<AbstractProvider | null>(null);
   const [contract, setContract] = useState<Contract | null>(null);
 
-  // ✅ Check if user session exists
+  // ✅ Restore session
   useEffect(() => {
     const currentUser = authStorage.getCurrentUser();
     if (currentUser) {
@@ -88,91 +84,108 @@ const Index = () => {
 
   // ✅ Connect MetaMask Wallet
   const connectWallet = async () => {
-  try {
-    if (!window.ethereum) {
-      toast.error("MetaMask is not installed. Please install it.");
-      return;
-    }
+    try {
+      if (!window.ethereum) {
+        toast.error("MetaMask is not installed. Please install it.");
+        return;
+      }
 
-    // Request MetaMask accounts
-    const accounts = await window.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    const address = accounts[0];
-
-    // Check network chain ID
-    const chainId = await window.ethereum.request({ method: "eth_chainId" });
-    if (chainId !== "0x539") { // 1337 in hex = 0x539
-      toast.warning("Switching MetaMask to Ganache network...");
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x539" }],
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
       });
+      const address = accounts[0];
+
+      const chainId = await window.ethereum.request({ method: "eth_chainId" });
+      if (chainId !== "0x539") {
+        toast.warning("Switching MetaMask to Ganache network...");
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0x539" }],
+        });
+      }
+
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      setWalletAddress(address);
+      setProvider(provider);
+      setContract(c);
+
+      authStorage.updateCurrentUser({ walletAddress: address });
+      setCurrentPage("dashboard");
+
+      toast.success("✅ Wallet connected successfully!");
+      console.log("Connected to:", address);
+    } catch (error: any) {
+      console.error("Wallet connection error:", error);
+      toast.error(error.message || "Failed to connect MetaMask");
     }
+  };
 
-    const provider = new BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+  // ✅ Improved Register Land Function
+  const registerLand = async (
+    landId: string,
+    owner: string,
+    location: string,
+    coordinates: { lat: number; lng: number },
+    documentUrl?: string,
+    polygonCoords?: [number, number][]
+  ) => {
+    try {
+      if (!contract) {
+        toast.error("Smart contract not initialized. Connect your wallet first.");
+        throw new Error("contract-not-initialized");
+      }
 
-    setWalletAddress(address);
-    setProvider(provider);
-    setContract(c);
+      toast.loading("Registering land on blockchain...");
 
-    authStorage.updateCurrentUser({ walletAddress: address });
-    setCurrentPage("dashboard");
+      // Ensure numeric Land ID
+      const landIdNumber = parseInt(landId.replace(/\D/g, "") || "0", 10);
+      if (isNaN(landIdNumber) || landIdNumber <= 0) {
+        toast.dismiss();
+        toast.error("Please enter a valid numeric Land ID (e.g., 101)");
+        throw new Error("invalid-land-id");
+      }
 
-    toast.success("Wallet connected successfully!");
-    console.log("Connected to:", address);
-  } catch (error: any) {
-    console.error("Wallet connection error:", error);
-    toast.error(error.message || "Failed to connect MetaMask");
-  }
-};
+      const metadata = JSON.stringify({
+        location,
+        coordinates,
+        documentUrl,
+        polygonCoords,
+      });
 
-const registerLand = async (
-  landId: string,
-  owner: string,
-  location: string,
-  coordinates: { lat: number; lng: number }
-) => {
-  try {
-    if (!contract) {
-      toast.error("Smart contract not initialized. Connect your wallet first.");
-      return;
-    }
+      console.log("⏳ Sending transaction...");
+      const tx = await contract.registerLand(landIdNumber, owner, metadata);
+      console.log("Transaction sent:", tx.hash);
 
-    toast.loading("Registering land on blockchain...");
+      const receipt = await tx.wait(1); // Wait for 1 confirmation
+      console.log("Transaction receipt:", receipt);
 
-    // 🧩 Ensure landId is numeric
-    const landIdNumber = parseInt(landId.replace(/\D/g, "") || "0");
-    if (isNaN(landIdNumber) || landIdNumber <= 0) {
-      toast.error("Please enter a valid numeric Land ID (e.g., 101)");
-      return;
-    }
+      if (receipt.status === 1 || receipt.status === "0x1") {
+        toast.dismiss();
+        toast.success("✅ Land registered successfully!");
+        return { success: true, txHash: tx.hash };
+      } else {
+        toast.dismiss();
+        toast.error("Transaction mined but failed");
+        throw new Error("tx-failed");
+      }
+    } catch (err: any) {
+      console.error("registerLand error:", err);
 
-    const metadata = JSON.stringify({ location, coordinates });
-
-    // 🧩 Send transaction
-    const tx = await contract.registerLand(landIdNumber, owner, metadata);
-    console.log("Transaction hash:", tx.hash);
-
-    // 🧩 Manually check if transaction was mined
-    const receipt = await contract.runner!.provider.waitForTransaction(tx.hash, 1, 8000);
-    if (receipt && receipt.status === 1) {
       toast.dismiss();
-      toast.success("Land registered successfully!");
-      console.log("Transaction mined:", receipt);
-    } else {
-      toast.error("⚠️ Transaction failed or timed out");
+      if (err?.code === 4001 || err?.message?.toLowerCase?.().includes("user rejected")) {
+        toast.error("Transaction rejected by user.");
+      } else if (err?.reason || err?.message) {
+        toast.error(err.reason || err.message);
+      } else {
+        toast.error("Transaction failed or timed out.");
+      }
+
+      throw err;
     }
-
-  } catch (error: any) {
-    console.error("Register land error:", error);
-    toast.error(error.message || "Failed to register land");
-  }
-};
-
-
+  };
 
   // ✅ Transfer Ownership
   const transferOwnership = async (landId: string, newOwner: string) => {
@@ -185,13 +198,19 @@ const registerLand = async (
       toast.loading("Transferring ownership...");
 
       const tx = await contract.transferOwnership(landId, newOwner);
-      await tx.wait();
+      const receipt = await tx.wait(1);
 
-      toast.success("Ownership transferred successfully!");
-      console.log("Transfer Tx Hash:", tx.hash);
-    } catch (error) {
+      toast.dismiss();
+      if (receipt.status === 1 || receipt.status === "0x1") {
+        toast.success("✅ Ownership transferred successfully!");
+        console.log("Transfer Tx:", tx.hash);
+      } else {
+        toast.error("⚠️ Transfer failed");
+      }
+    } catch (error: any) {
+      toast.dismiss();
       console.error("Transfer error:", error);
-      toast.error("Failed to transfer ownership");
+      toast.error(error.message || "Failed to transfer ownership");
     }
   };
 
@@ -204,24 +223,13 @@ const registerLand = async (
   return (
     <div className="min-h-screen bg-background transition-smooth">
       {currentPage !== "login" && (
-        <Header
-          theme={theme}
-          toggleTheme={toggleTheme}
-          walletAddress={walletAddress}
-        />
+        <Header theme={theme} toggleTheme={toggleTheme} walletAddress={walletAddress} />
       )}
 
       {currentPage === "login" && (
         <>
-          <Header
-            theme={theme}
-            toggleTheme={toggleTheme}
-            walletAddress={null}
-          />
-          <LoginView
-            connectWallet={connectWallet}
-            onAuthSuccess={handleAuthSuccess}
-          />
+          <Header theme={theme} toggleTheme={toggleTheme} walletAddress={null} />
+          <LoginView connectWallet={connectWallet} onAuthSuccess={handleAuthSuccess} />
         </>
       )}
 
@@ -230,21 +238,16 @@ const registerLand = async (
           setCurrentPage={(page: string) =>
             setCurrentPage(page as "login" | "dashboard" | "registry" | "transfer")
           }
+          walletAddress={walletAddress}
         />
       )}
 
       {currentPage === "registry" && (
-        <RegistryView
-          walletAddress={walletAddress}
-          registerLand={registerLand}
-        />
+        <RegistryView walletAddress={walletAddress} registerLand={registerLand} />
       )}
 
       {currentPage === "transfer" && (
-        <TransferView
-          walletAddress={walletAddress}
-          transferOwnership={transferOwnership}
-        />
+        <TransferView walletAddress={walletAddress} transferOwnership={transferOwnership} />
       )}
     </div>
   );

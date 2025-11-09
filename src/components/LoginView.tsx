@@ -233,3 +233,10 @@ const LoginView = ({ connectWallet, onAuthSuccess }: LoginViewProps) => {
 };
 
 export default LoginView;
+
+
+
+
+
+
+

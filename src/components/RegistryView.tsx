@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Loader2, Send, Upload } from "lucide-react";
+import { MapPin, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import LandList from "./LandList";
 import MapSimulator from "./MapSimulator";
 import DocumentUpload from "./DocumentUpload";
+import MapDraw from "@/components/MapDraw";
 
 interface LandParcel {
   id: string;
@@ -15,6 +16,7 @@ interface LandParcel {
   owner: string;
   location: string;
   coordinates: { lat: number; lng: number };
+  polygonCoords?: [number, number][];
   documentUrl?: string;
   timestamp: string;
 }
@@ -26,8 +28,9 @@ interface RegistryViewProps {
     owner: string,
     location: string,
     coordinates: { lat: number; lng: number },
-    documentUrl?: string
-  ) => Promise<void>;
+    documentUrl?: string,
+    polygonCoords?: [number, number][]
+  ) => Promise<{ success?: boolean; txHash?: string }>;
 }
 
 const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
@@ -35,6 +38,7 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
   const [owner, setOwner] = useState(walletAddress || "");
   const [location, setLocation] = useState("");
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [polygonCoords, setPolygonCoords] = useState<[number, number][]>([]);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -45,7 +49,7 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // 🔹 Fetch current location
+  // 🔹 Fetch current GPS location
   const fetchCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser");
@@ -61,7 +65,7 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
         };
         setCoordinates(coords);
         setIsGettingLocation(false);
-        toast.success("Location fetched successfully!");
+        toast.success("📍 Location fetched successfully!");
       },
       (error) => {
         setIsGettingLocation(false);
@@ -71,24 +75,36 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
     );
   };
 
-  // 🔹 Register land on blockchain
+  // 🔹 Register Land on Blockchain
   const handleRegister = async () => {
-    if (!landId || !owner || !location || !coordinates) {
-      toast.error("Please fill all fields and fetch location");
+    if (!landId || !owner || !location || (!coordinates && polygonCoords.length === 0)) {
+      toast.error("Please fill all fields and provide location or draw land boundary");
       return;
     }
 
     setIsRegistering(true);
 
     try {
-      await registerLand(landId, owner, location, coordinates, documentUrl || undefined);
+      const result = await registerLand(
+        landId,
+        owner,
+        location,
+        coordinates || { lat: polygonCoords[0][0], lng: polygonCoords[0][1] },
+        documentUrl || undefined,
+        polygonCoords.length > 0 ? polygonCoords : undefined
+      );
+
+      if (result?.txHash) {
+        toast.success(`✅ Land registered! Tx Hash: ${result.txHash.slice(0, 12)}...`);
+      }
 
       const newParcel: LandParcel = {
         id: Date.now().toString(),
         landId,
         owner,
         location,
-        coordinates,
+        coordinates: coordinates || { lat: polygonCoords[0][0], lng: polygonCoords[0][1] },
+        polygonCoords,
         documentUrl: documentUrl || "",
         timestamp: new Date().toISOString(),
       };
@@ -97,15 +113,17 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
       setParcels(updatedParcels);
       localStorage.setItem("landParcels", JSON.stringify(updatedParcels));
 
-      // Reset form
+      // Reset inputs
       setLandId("");
       setLocation("");
       setCoordinates(null);
+      setPolygonCoords([]);
       setDocumentUrl(null);
 
-      toast.success("✅ Land registered successfully!");
-    } catch (error) {
-      toast.error("Failed to register land");
+      toast.success("🏡 Land added to registry!");
+    } catch (err) {
+      console.error("handleRegister error:", err);
+      toast.error("❌ Failed to register land. Check console for details.");
     } finally {
       setIsRegistering(false);
     }
@@ -124,9 +142,7 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Registration Panel */}
         <Card className="p-6 shadow-corporate">
-          <h3 className="text-xl font-semibold text-foreground mb-6">
-            Register New Land
-          </h3>
+          <h3 className="text-xl font-semibold text-foreground mb-6">Register New Land</h3>
 
           <div className="space-y-4">
             {/* Land ID */}
@@ -143,13 +159,11 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
 
             {/* Document Upload */}
             <div>
-              <Label className="flex items-center gap-2">
-                {/* <Upload className="w-4 h-4" /> Upload Land Document */}
-              </Label>
+              {/* <Label className="flex items-center gap-2">Upload Land Document</Label> */}
               <DocumentUpload
                 parcelId={landId || "temp"}
                 onUploadComplete={(url) => {
-                  toast.success("Document uploaded successfully!");
+                  toast.success("📄 Document uploaded successfully!");
                   setDocumentUrl(url);
                 }}
               />
@@ -220,25 +234,35 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
                     Coordinates Captured:
                   </p>
                   <p className="text-xs text-foreground">
-                    Latitude:{" "}
-                    <span className="font-mono">
-                      {coordinates.lat.toFixed(6)}
-                    </span>
+                    Latitude: <span className="font-mono">{coordinates.lat.toFixed(6)}</span>
                   </p>
                   <p className="text-xs text-foreground">
-                    Longitude:{" "}
-                    <span className="font-mono">
-                      {coordinates.lng.toFixed(6)}
-                    </span>
+                    Longitude: <span className="font-mono">{coordinates.lng.toFixed(6)}</span>
                   </p>
                 </div>
+              )}
+            </div>
+
+            {/* MapDraw Component for Polygon Drawing */}
+            <div className="mt-4">
+              <Label>Draw Land Boundary (Optional)</Label>
+              <MapDraw
+                onShapeDrawn={(coords) => {
+                  setPolygonCoords(coords);
+                  toast.success("✅ Land boundary drawn successfully!");
+                }}
+              />
+              {polygonCoords.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {polygonCoords.length} boundary points captured
+                </p>
               )}
             </div>
 
             {/* Register Button */}
             <Button
               onClick={handleRegister}
-              disabled={isRegistering || !coordinates}
+              disabled={isRegistering || (!coordinates && polygonCoords.length === 0)}
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold py-6 transition-smooth shadow-md"
             >
               {isRegistering ? (
