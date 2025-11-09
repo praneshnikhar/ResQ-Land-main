@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { MapPin, Loader2, Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import LandList from './LandList';
-import MapSimulator from './MapSimulator';
+import { useState } from "react";
+import { MapPin, Loader2, Send, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import LandList from "./LandList";
+import MapSimulator from "./MapSimulator";
+import DocumentUpload from "./DocumentUpload";
 
 interface LandParcel {
   id: string;
@@ -14,45 +15,53 @@ interface LandParcel {
   owner: string;
   location: string;
   coordinates: { lat: number; lng: number };
+  documentUrl?: string;
   timestamp: string;
 }
 
 interface RegistryViewProps {
   walletAddress: string | null;
-  registerLand: (landId: string, owner: string, location: string, coordinates: { lat: number; lng: number }) => Promise<void>;
+  registerLand: (
+    landId: string,
+    owner: string,
+    location: string,
+    coordinates: { lat: number; lng: number },
+    documentUrl?: string
+  ) => Promise<void>;
 }
 
 const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
-  const [landId, setLandId] = useState('');
-  const [owner, setOwner] = useState(walletAddress || '');
-  const [location, setLocation] = useState('');
+  const [landId, setLandId] = useState("");
+  const [owner, setOwner] = useState(walletAddress || "");
+  const [location, setLocation] = useState("");
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [selectedParcel, setSelectedParcel] = useState<LandParcel | null>(null);
 
   const [parcels, setParcels] = useState<LandParcel[]>(() => {
-    const saved = localStorage.getItem('landParcels');
+    const saved = localStorage.getItem("landParcels");
     return saved ? JSON.parse(saved) : [];
   });
 
+  // 🔹 Fetch current location
   const fetchCurrentLocation = () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
+      toast.error("Geolocation is not supported by your browser");
       return;
     }
 
     setIsGettingLocation(true);
-    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords = {
           lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lng: position.coords.longitude,
         };
         setCoordinates(coords);
         setIsGettingLocation(false);
-        toast.success('Location fetched successfully!');
+        toast.success("Location fetched successfully!");
       },
       (error) => {
         setIsGettingLocation(false);
@@ -62,38 +71,41 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
     );
   };
 
+  // 🔹 Register land on blockchain
   const handleRegister = async () => {
     if (!landId || !owner || !location || !coordinates) {
-      toast.error('Please fill all fields and fetch location');
+      toast.error("Please fill all fields and fetch location");
       return;
     }
 
     setIsRegistering(true);
-    
+
     try {
-      await registerLand(landId, owner, location, coordinates);
-      
+      await registerLand(landId, owner, location, coordinates, documentUrl || undefined);
+
       const newParcel: LandParcel = {
         id: Date.now().toString(),
         landId,
         owner,
         location,
         coordinates,
-        timestamp: new Date().toISOString()
+        documentUrl: documentUrl || "",
+        timestamp: new Date().toISOString(),
       };
-      
+
       const updatedParcels = [...parcels, newParcel];
       setParcels(updatedParcels);
-      localStorage.setItem('landParcels', JSON.stringify(updatedParcels));
-      
+      localStorage.setItem("landParcels", JSON.stringify(updatedParcels));
+
       // Reset form
-      setLandId('');
-      setLocation('');
+      setLandId("");
+      setLocation("");
       setCoordinates(null);
-      
-      toast.success('Land registered successfully!');
+      setDocumentUrl(null);
+
+      toast.success("✅ Land registered successfully!");
     } catch (error) {
-      toast.error('Failed to register land');
+      toast.error("Failed to register land");
     } finally {
       setIsRegistering(false);
     }
@@ -101,17 +113,23 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Page Header */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-foreground mb-2">Land Registry</h2>
-        <p className="text-muted-foreground">Register and manage land parcels on blockchain</p>
+        <p className="text-muted-foreground">
+          Register and manage land parcels securely on blockchain
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Registration Panel */}
         <Card className="p-6 shadow-corporate">
-          <h3 className="text-xl font-semibold text-foreground mb-6">Register New Land</h3>
-          
+          <h3 className="text-xl font-semibold text-foreground mb-6">
+            Register New Land
+          </h3>
+
           <div className="space-y-4">
+            {/* Land ID */}
             <div>
               <Label htmlFor="landId">Land ID (Blockchain Key)</Label>
               <Input
@@ -123,6 +141,34 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
               />
             </div>
 
+            {/* Document Upload */}
+            <div>
+              <Label className="flex items-center gap-2">
+                {/* <Upload className="w-4 h-4" /> Upload Land Document */}
+              </Label>
+              <DocumentUpload
+                parcelId={landId || "temp"}
+                onUploadComplete={(url) => {
+                  toast.success("Document uploaded successfully!");
+                  setDocumentUrl(url);
+                }}
+              />
+              {documentUrl && (
+                <p className="text-xs text-green-600 mt-2">
+                  Uploaded:{" "}
+                  <a
+                    href={documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    View Document
+                  </a>
+                </p>
+              )}
+            </div>
+
+            {/* Owner Address */}
             <div>
               <Label htmlFor="owner">Owner Address</Label>
               <Input
@@ -134,17 +180,19 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
               />
             </div>
 
+            {/* Location */}
             <div>
               <Label htmlFor="location">Location Name</Label>
               <Input
                 id="location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g., Downtown District, Plot 42"
+                placeholder="e.g., Dehmi Kalan, Jaipur, Rajasthan"
                 className="mt-1"
               />
             </div>
 
+            {/* Coordinates */}
             <div>
               <Label>Geolocation Coordinates</Label>
               <Button
@@ -165,20 +213,29 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
                   </>
                 )}
               </Button>
-              
+
               {coordinates && (
                 <div className="mt-3 p-3 bg-accent/10 rounded-lg border border-accent/20">
-                  <p className="text-sm font-semibold text-accent mb-1">Coordinates Captured:</p>
-                  <p className="text-xs text-foreground">
-                    Latitude: <span className="font-mono">{coordinates.lat.toFixed(6)}</span>
+                  <p className="text-sm font-semibold text-accent mb-1">
+                    Coordinates Captured:
                   </p>
                   <p className="text-xs text-foreground">
-                    Longitude: <span className="font-mono">{coordinates.lng.toFixed(6)}</span>
+                    Latitude:{" "}
+                    <span className="font-mono">
+                      {coordinates.lat.toFixed(6)}
+                    </span>
+                  </p>
+                  <p className="text-xs text-foreground">
+                    Longitude:{" "}
+                    <span className="font-mono">
+                      {coordinates.lng.toFixed(6)}
+                    </span>
                   </p>
                 </div>
               )}
             </div>
 
+            {/* Register Button */}
             <Button
               onClick={handleRegister}
               disabled={isRegistering || !coordinates}
@@ -199,14 +256,13 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
           </div>
         </Card>
 
-        {/* Data Display Panel */}
+        {/* Display Panel */}
         <div className="space-y-6">
           <LandList
             parcels={parcels}
             onSelectParcel={setSelectedParcel}
             selectedParcel={selectedParcel}
           />
-          
           <MapSimulator selectedParcel={selectedParcel} />
         </div>
       </div>

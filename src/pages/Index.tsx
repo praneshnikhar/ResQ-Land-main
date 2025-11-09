@@ -1,219 +1,247 @@
-import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import Header from '@/components/Header';
-import LoginView from '@/components/LoginView';
-import DashboardView from '@/components/DashboardView';
-import RegistryView from '@/components/RegistryView';
-import TransferView from '@/components/TransferView';
-import { authStorage } from '@/utils/authStorage';
 
-// Hardcoded blockchain variables
-const CONTRACT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import {
+  BrowserProvider,
+  JsonRpcProvider,
+  Contract,
+  AbstractProvider,
+} from "ethers";
+import Header from "@/components/Header";
+import LoginView from "@/components/LoginView";
+import DashboardView from "@/components/DashboardView";
+import RegistryView from "@/components/RegistryView";
+import TransferView from "@/components/TransferView";
+import { authStorage } from "@/utils/authStorage";
+
+// ✅ Smart Contract (from Ganache/Hardhat deployment)
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const CONTRACT_ABI = [
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "landId", "type": "uint256" },
-      { "internalType": "address", "name": "owner", "type": "address" },
-      { "internalType": "string", "name": "metadata", "type": "string" }
+    inputs: [
+      { internalType: "uint256", name: "landId", type: "uint256" },
+      { internalType: "address", name: "owner", type: "address" },
+      { internalType: "string", name: "metadata", type: "string" },
     ],
-    "name": "registerLand",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "registerLand",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "landId", "type": "uint256" }],
-    "name": "getLandOwner",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [{ internalType: "uint256", name: "landId", type: "uint256" }],
+    name: "getLandOwner",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "landId", "type": "uint256" },
-      { "internalType": "address", "name": "newOwner", "type": "address" }
+    inputs: [
+      { internalType: "uint256", name: "landId", type: "uint256" },
+      { internalType: "address", name: "newOwner", type: "address" },
     ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ];
-const RPC_URL = 'http://127.0.0.1:8545';
+
+const RPC_URL = "http://127.0.0.1:8545";
 
 const Index = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('theme');
-    return (saved as 'light' | 'dark') || 'light';
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    const saved = localStorage.getItem("theme");
+    return (saved as "light" | "dark") || "light";
   });
-  
-  const [currentPage, setCurrentPage] = useState<'login' | 'dashboard' | 'registry' | 'transfer'>('login');
+
+  const [currentPage, setCurrentPage] = useState<
+    "login" | "dashboard" | "registry" | "transfer"
+  >("login");
+
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [provider, setProvider] = useState<AbstractProvider | null>(null);
+  const [contract, setContract] = useState<Contract | null>(null);
 
-  // Check for existing logged in user on mount
+  // ✅ Check if user session exists
   useEffect(() => {
     const currentUser = authStorage.getCurrentUser();
     if (currentUser) {
       setUserEmail(currentUser.email);
       if (currentUser.walletAddress) {
         setWalletAddress(currentUser.walletAddress);
-        setCurrentPage('dashboard');
+        setCurrentPage("dashboard");
       }
     }
   }, []);
 
-  // Apply theme to document
+  // ✅ Theme toggle
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('theme', theme);
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  const handleAuthSuccess = (email: string) => {
-    setUserEmail(email);
-    // After successful auth, user can connect wallet or go to dashboard
-    setCurrentPage('dashboard');
-  };
-
+  // ✅ Connect MetaMask Wallet
   const connectWallet = async () => {
+  try {
+    if (!window.ethereum) {
+      toast.error("MetaMask is not installed. Please install it.");
+      return;
+    }
+
+    // Request MetaMask accounts
+    const accounts = await window.ethereum.request({
+      method: "eth_requestAccounts",
+    });
+    const address = accounts[0];
+
+    // Check network chain ID
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    if (chainId !== "0x539") { // 1337 in hex = 0x539
+      toast.warning("Switching MetaMask to Ganache network...");
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x539" }],
+      });
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+    setWalletAddress(address);
+    setProvider(provider);
+    setContract(c);
+
+    authStorage.updateCurrentUser({ walletAddress: address });
+    setCurrentPage("dashboard");
+
+    toast.success("Wallet connected successfully!");
+    console.log("Connected to:", address);
+  } catch (error: any) {
+    console.error("Wallet connection error:", error);
+    toast.error(error.message || "Failed to connect MetaMask");
+  }
+};
+
+const registerLand = async (
+  landId: string,
+  owner: string,
+  location: string,
+  coordinates: { lat: number; lng: number }
+) => {
+  try {
+    if (!contract) {
+      toast.error("Smart contract not initialized. Connect your wallet first.");
+      return;
+    }
+
+    toast.loading("Registering land on blockchain...");
+
+    // 🧩 Ensure landId is numeric
+    const landIdNumber = parseInt(landId.replace(/\D/g, "") || "0");
+    if (isNaN(landIdNumber) || landIdNumber <= 0) {
+      toast.error("Please enter a valid numeric Land ID (e.g., 101)");
+      return;
+    }
+
+    const metadata = JSON.stringify({ location, coordinates });
+
+    // 🧩 Send transaction
+    const tx = await contract.registerLand(landIdNumber, owner, metadata);
+    console.log("Transaction hash:", tx.hash);
+
+    // 🧩 Manually check if transaction was mined
+    const receipt = await contract.runner!.provider.waitForTransaction(tx.hash, 1, 8000);
+    if (receipt && receipt.status === 1) {
+      toast.dismiss();
+      toast.success("Land registered successfully!");
+      console.log("Transaction mined:", receipt);
+    } else {
+      toast.error("⚠️ Transaction failed or timed out");
+    }
+
+  } catch (error: any) {
+    console.error("Register land error:", error);
+    toast.error(error.message || "Failed to register land");
+  }
+};
+
+
+
+  // ✅ Transfer Ownership
+  const transferOwnership = async (landId: string, newOwner: string) => {
     try {
-      // Check if MetaMask is installed
-      if (typeof window.ethereum === 'undefined') {
-        toast.error('MetaMask is not installed. Please install MetaMask extension.');
+      if (!contract) {
+        toast.error("Smart contract not initialized. Connect your wallet first.");
         return;
       }
 
-      // Simulate Ethers.js v6 connection
-      toast.loading('Connecting to MetaMask...');
-      
-      // Request account access
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      const address = accounts[0];
-      setWalletAddress(address);
-      
-      // Update user with wallet address
-      authStorage.updateCurrentUser({ walletAddress: address });
-      
-      setCurrentPage('dashboard');
-      
-      toast.success('Wallet connected successfully!');
-      
-      console.log('Connected to:', address);
-      console.log('Contract Address:', CONTRACT_ADDRESS);
-      console.log('RPC URL:', RPC_URL);
+      toast.loading("Transferring ownership...");
+
+      const tx = await contract.transferOwnership(landId, newOwner);
+      await tx.wait();
+
+      toast.success("Ownership transferred successfully!");
+      console.log("Transfer Tx Hash:", tx.hash);
     } catch (error) {
-      console.error('Connection error:', error);
-      toast.error('Failed to connect wallet');
+      console.error("Transfer error:", error);
+      toast.error("Failed to transfer ownership");
     }
   };
 
-  const registerLand = async (
-    landId: string, 
-    owner: string, 
-    location: string, 
-    coordinates: { lat: number; lng: number }
-  ) => {
-    try {
-      toast.loading('Initiating blockchain transaction...');
-      
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const metadata = JSON.stringify({ location, coordinates });
-      
-      // Simulated Ethers.js v6 transaction
-      console.log('Registering land on blockchain:');
-      console.log('Contract:', CONTRACT_ADDRESS);
-      console.log('Land ID:', landId);
-      console.log('Owner:', owner);
-      console.log('Metadata:', metadata);
-      console.log('ABI:', CONTRACT_ABI);
-      
-      toast.success('Transaction submitted to blockchain!');
-      
-      // Simulate confirmation
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Transaction confirmed!');
-      
-    } catch (error) {
-      console.error('Transaction error:', error);
-      throw error;
-    }
-  };
-
-  const transferOwnership = async (landId: string, newOwner: string) => {
-    try {
-      toast.loading('Initiating transfer transaction...');
-      
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Simulated Ethers.js v6 transaction
-      console.log('Transferring ownership on blockchain:');
-      console.log('Contract:', CONTRACT_ADDRESS);
-      console.log('Land ID:', landId);
-      console.log('Current Owner:', walletAddress);
-      console.log('New Owner:', newOwner);
-      console.log('ABI:', CONTRACT_ABI);
-      
-      toast.success('Transfer transaction submitted!');
-      
-      // Simulate confirmation
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Transfer confirmed on blockchain!');
-      
-    } catch (error) {
-      console.error('Transfer error:', error);
-      throw error;
-    }
+  // ✅ Handle user login success
+  const handleAuthSuccess = (email: string) => {
+    setUserEmail(email);
+    setCurrentPage("dashboard");
   };
 
   return (
     <div className="min-h-screen bg-background transition-smooth">
-      {currentPage !== 'login' && (
-        <Header 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
+      {currentPage !== "login" && (
+        <Header
+          theme={theme}
+          toggleTheme={toggleTheme}
           walletAddress={walletAddress}
         />
       )}
 
-      {currentPage === 'login' && (
+      {currentPage === "login" && (
         <>
-          <Header 
-            theme={theme} 
-            toggleTheme={toggleTheme} 
+          <Header
+            theme={theme}
+            toggleTheme={toggleTheme}
             walletAddress={null}
           />
-          <LoginView 
+          <LoginView
             connectWallet={connectWallet}
             onAuthSuccess={handleAuthSuccess}
           />
         </>
       )}
 
-      {currentPage === 'dashboard' && (
-        <DashboardView 
-          setCurrentPage={(page: string) => setCurrentPage(page as 'login' | 'dashboard' | 'registry' | 'transfer')} 
+      {currentPage === "dashboard" && (
+        <DashboardView
+          setCurrentPage={(page: string) =>
+            setCurrentPage(page as "login" | "dashboard" | "registry" | "transfer")
+          }
         />
       )}
 
-      {currentPage === 'registry' && (
-        <RegistryView 
+      {currentPage === "registry" && (
+        <RegistryView
           walletAddress={walletAddress}
           registerLand={registerLand}
         />
       )}
 
-      {currentPage === 'transfer' && (
-        <TransferView 
+      {currentPage === "transfer" && (
+        <TransferView
           walletAddress={walletAddress}
           transferOwnership={transferOwnership}
         />
@@ -222,7 +250,7 @@ const Index = () => {
   );
 };
 
-// Extend Window interface for TypeScript
+// Extend window type for MetaMask
 declare global {
   interface Window {
     ethereum?: any;

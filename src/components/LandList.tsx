@@ -1,5 +1,8 @@
-import { MapPin, Calendar } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card } from "@/components/ui/card";
+import { FileText, ExternalLink } from "lucide-react";
+import { motion } from "framer-motion"; // ✅ Added Framer Motion import
 
 interface LandParcel {
   id: string;
@@ -8,6 +11,7 @@ interface LandParcel {
   location: string;
   coordinates: { lat: number; lng: number };
   timestamp: string;
+  documentUrl?: string;
 }
 
 interface LandListProps {
@@ -18,46 +22,113 @@ interface LandListProps {
 
 const LandList = ({ parcels, onSelectParcel, selectedParcel }: LandListProps) => {
   return (
-    <Card className="p-6 shadow-corporate">
-      <h3 className="text-xl font-semibold text-foreground mb-4">All Registered Parcels</h3>
-      
+    <Card className="p-4 shadow-corporate">
+      {/* Header */}
+      <motion.h3
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="text-lg font-semibold text-foreground mb-4"
+      >
+        Registered Land Parcels
+      </motion.h3>
+
+      {/* Empty State */}
       {parcels.length === 0 ? (
-        <div className="text-center py-8">
-          <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No parcels registered yet</p>
-        </div>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="text-sm text-muted-foreground"
+        >
+          No lands registered yet.
+        </motion.p>
       ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {parcels.map((parcel) => (
-            <button
-              key={parcel.id}
-              onClick={() => onSelectParcel(parcel)}
-              className={`w-full text-left p-4 rounded-lg transition-smooth border ${
-                selectedParcel?.id === parcel.id
-                  ? 'bg-accent/10 border-accent'
-                  : 'bg-secondary hover:bg-secondary/80 border-transparent'
-              }`}
+        <ScrollArea className="h-[420px] rounded-md border border-accent/20">
+          <table className="w-full text-sm border-collapse">
+            {/* Table Header */}
+            <motion.thead
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="sticky top-0 bg-accent/10 backdrop-blur-sm z-10"
             >
-              <div className="flex items-start justify-between mb-2">
-                <span className="font-semibold text-foreground">{parcel.landId}</span>
-                <span className="text-xs text-accent font-medium">Active</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-2">{parcel.location}</p>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  <span className="font-mono">
-                    {parcel.coordinates.lat.toFixed(4)}, {parcel.coordinates.lng.toFixed(4)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <span>{new Date(parcel.timestamp).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              <tr className="text-left text-muted-foreground border-b border-accent/20">
+                <th className="px-3 py-2 font-semibold">Land ID</th>
+                <th className="px-3 py-2 font-semibold">Location</th>
+                <th className="px-3 py-2 font-semibold">Owner</th>
+                <th className="px-3 py-2 font-semibold">Date</th>
+                <th className="px-3 py-2 font-semibold">Document</th>
+                <th className="px-3 py-2 font-semibold text-center">Action</th>
+              </tr>
+            </motion.thead>
+
+            {/* Animated Table Rows */}
+            <motion.tbody
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: {},
+                visible: {
+                  transition: {
+                    staggerChildren: 0.07, // nice cascading effect
+                  },
+                },
+              }}
+            >
+              {parcels.map((parcel) => (
+                <motion.tr
+                  key={parcel.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  transition={{ duration: 0.4 }}
+                  onClick={() => onSelectParcel(parcel)}
+                  className={`border-b border-accent/10 hover:bg-accent/10 cursor-pointer transition-all ${
+                    selectedParcel?.id === parcel.id ? "bg-accent/20" : ""
+                  }`}
+                >
+                  <td className="px-3 py-2 font-medium">{parcel.landId}</td>
+                  <td className="px-3 py-2">{parcel.location}</td>
+                  <td className="px-3 py-2 truncate max-w-[120px]">
+                    {parcel.owner.slice(0, 6)}...{parcel.owner.slice(-4)}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {new Date(parcel.timestamp).toLocaleDateString()}{" "}
+                    {new Date(parcel.timestamp).toLocaleTimeString()}
+                  </td>
+                  <td className="px-3 py-2">
+                    {parcel.documentUrl ? (
+                      <a
+                        href={parcel.documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-blue-500 hover:underline"
+                      >
+                        <FileText className="w-4 h-4" /> View
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">
+                        No file
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <a
+                      href={`https://www.google.com/maps?q=${parcel.coordinates.lat},${parcel.coordinates.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-accent hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" /> View
+                    </a>
+                  </td>
+                </motion.tr>
+              ))}
+            </motion.tbody>
+          </table>
+        </ScrollArea>
       )}
     </Card>
   );
