@@ -1,7 +1,7 @@
 
 import { Moon, Sun, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom"; // ✅ added import
+import { Link } from "react-router-dom"; //added import
 
 interface HeaderProps {
   theme: "light" | "dark";
@@ -13,7 +13,7 @@ const Header = ({ theme, toggleTheme, walletAddress }: HeaderProps) => {
   return (
     <header className="border-b bg-card shadow-corporate transition-smooth">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* ✅ Clickable Logo */}
+        {/* Clickable Logo */}
         <Link
           to="/"
           className="flex items-center gap-3 group hover:opacity-90 hover:scale-[1.03] transition-all duration-200"

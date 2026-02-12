@@ -68,7 +68,7 @@
 
 
 
-// src/components/DocumentPreviewModal.tsx
+
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";

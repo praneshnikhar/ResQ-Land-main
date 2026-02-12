@@ -187,7 +187,7 @@ const Index = () => {
     }
   };
 
-  // ✅ Transfer Ownership
+  // Transfer Ownership
   const transferOwnership = async (landId: string, newOwner: string) => {
     try {
       if (!contract) {
@@ -202,7 +202,7 @@ const Index = () => {
 
       toast.dismiss();
       if (receipt.status === 1 || receipt.status === "0x1") {
-        toast.success("✅ Ownership transferred successfully!");
+        toast.success("Ownership transferred successfully!");
         console.log("Transfer Tx:", tx.hash);
       } else {
         toast.error("⚠️ Transfer failed");
@@ -214,7 +214,7 @@ const Index = () => {
     }
   };
 
-  // ✅ Handle user login success
+  //  Handle user login success
   const handleAuthSuccess = (email: string) => {
     setUserEmail(email);
     setCurrentPage("dashboard");

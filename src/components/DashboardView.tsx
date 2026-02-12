@@ -5,9 +5,9 @@ import { MapPin, FileText, RefreshCw, LogOut, Wallet, Copy } from "lucide-react"
 import { toast } from "sonner";
 
 interface DashboardViewProps {
-  setCurrentPage: (page: string) => void;
+  setCurrentPage: (page: string) => void;      
   logout?: () => void;
-  walletAddress?: string | null; // ✅ added for wallet display
+  walletAddress?: string | null; // added for wallet display
 }
 
 const DashboardView = ({ setCurrentPage, logout, walletAddress }: DashboardViewProps) => {
@@ -51,7 +51,7 @@ const DashboardView = ({ setCurrentPage, logout, walletAddress }: DashboardViewP
           </motion.div>
         )}
 
-        {/* 🌍 Header Section */}
+        {/*  Header Section */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -66,7 +66,7 @@ const DashboardView = ({ setCurrentPage, logout, walletAddress }: DashboardViewP
           </p>
         </motion.div>
 
-        {/* ⚙️ Main Actions */}
+        {/*  Main Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -113,7 +113,7 @@ const DashboardView = ({ setCurrentPage, logout, walletAddress }: DashboardViewP
           </motion.div>
         </div>
 
-        {/* 📦 Records Card */}
+        {/*  Records Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,7 +138,7 @@ const DashboardView = ({ setCurrentPage, logout, walletAddress }: DashboardViewP
           </Card>
         </motion.div>
 
-        {/* 🚪 Logout Button */}
+        {/*  Logout Button */}
         {logout && (
           <div className="flex justify-center mt-8">
             <Button

@@ -2,12 +2,12 @@
 import React, { useState } from "react";
 
 interface DocumentUploadProps {
-  parcelId?: string; // ✅ Added this line
+  parcelId?: string; // Added this line
   onUploadComplete: (url: string) => void;
 }
 
 const DocumentUpload: React.FC<DocumentUploadProps> = ({
-  parcelId, // ✅ Now parcelId is accepted
+  parcelId, // Now parcelId is accepted
   onUploadComplete,
 }) => {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
@@ -25,13 +25,13 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
 
     const options = {
-      apiKey: "public_223k2TVyu17Fgxw6BbzrTpMfYMGp", // ✅ your Bytescale key
+      apiKey: "public_W23MTXH5EBWB8cN3dsq85mXErfkT", // your Bytescale key
       maxFileCount: 1,
       mimeTypes: ["image/*", "application/pdf"],
       __filename:`${parcelId}.pdf`,
       layout: "modal",
       showFinishButton: true,
-      metadata: { parcelId: parcelId || "unknown" }, // ✅ optional but helps tracking
+      metadata: { parcelId: parcelId || "unknown" }, // optional but helps tracking
     };
 
     try {

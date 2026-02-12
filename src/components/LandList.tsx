@@ -2,7 +2,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { FileText, ExternalLink } from "lucide-react";
-import { motion } from "framer-motion"; // ✅ Added Framer Motion import
+import { motion } from "framer-motion"; // Added Framer Motion import
 
 interface LandParcel {
   id: string;
