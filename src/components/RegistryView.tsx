@@ -338,10 +338,20 @@ const RegistryView = ({ walletAddress, registerLand }: RegistryViewProps) => {
   };
 
   // Calculate Area
+  // const calculateArea = (coords: [number, number][]) => {
+  //   const polygon = convertToGeoJSON(coords);
+  //   return turf.area(polygon); // sq meters
+  // };
   const calculateArea = (coords: [number, number][]) => {
-    const polygon = convertToGeoJSON(coords);
-    return turf.area(polygon); // sq meters
-  };
+  const geoCoords = coords.map(([lat, lng]) => [lng, lat]);
+  geoCoords.push(geoCoords[0]);
+
+  const polygon = turf.polygon([geoCoords]);
+  const area = turf.area(polygon); // in square meters
+
+  return area;
+};
+
 
   // Overlap Detection
   const isPolygonOverlapping = (
