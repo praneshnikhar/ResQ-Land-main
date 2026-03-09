@@ -290,17 +290,6 @@ import DocumentUpload from "./DocumentUpload";
 import MapDraw from "@/components/MapDraw";
 import * as turf from "@turf/turf";
 
-// interface LandParcel {
-//   id: string;
-//   landId: string;
-//   owner: string;
-//   location: string;
-//   coordinates: { lat: number; lng: number };
-//   polygonCoords?: [number, number][];
-//   documentUrl?: string;
-//   timestamp: string;
-// }
-
 interface LandParcel {
   id: string;
   landId: string;
@@ -311,6 +300,17 @@ interface LandParcel {
   documentUrl?: string;
   timestamp: string;
 }
+
+// interface LandParcel {
+//   id: string;
+//   landId: string;
+//   owner: string;
+//   location: string;
+//   coordinates: { lat: number; lng: number };
+//   polygonCoords?: [number, number][];
+//   documentUrl?: string;
+//   timestamp: string;
+// }
 
 interface RegistryViewProps {
   walletAddress: string | null;

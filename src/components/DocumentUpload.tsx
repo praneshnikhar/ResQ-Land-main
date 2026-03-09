@@ -14,7 +14,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
 
   const openUploadWidget = async () => {
-    setIsUploading(true);
+    setIsUploading(true);[]
 
     // @ts-ignore
     const widget = window.Bytescale?.UploadWidget;
@@ -25,7 +25,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
 
     const options = {
-      apiKey: "public_W23MTXH5EBWB8cN3dsq85mXErfkT", // your Bytescale key
+      apiKey: "public_kW2K8n39X5vc7UnWUStPj6nT2ywK", // your Bytescale key
       maxFileCount: 1,
       mimeTypes: ["image/*", "application/pdf"],
       __filename:`${parcelId}.pdf`,

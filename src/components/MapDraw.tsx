@@ -3,8 +3,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw"; // important
-import { FeatureGroup } from "react-leaflet";
-import { EditControl } from "react-leaflet-draw";
+// import { FeatureGroup } from "react-leaflet";
+// import { EditControl } from "react-leaflet-draw";
 
 interface MapDrawProps {
   onShapeDrawn: (coords: [number, number][]) => void;
