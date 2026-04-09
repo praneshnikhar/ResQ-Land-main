@@ -236,3 +236,14 @@ const TransferView = ({ walletAddress, transferOwnership }: TransferViewProps) =
 };
 
 export default TransferView;
+
+
+
+
+
+
+
+
+
+
+
