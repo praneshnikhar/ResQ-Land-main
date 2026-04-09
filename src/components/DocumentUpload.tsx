@@ -25,7 +25,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
 
     const options = {
-      apiKey: "public_kW2K8n39X5vc7UnWUStPj6nT2ywK", // your Bytescale key
+      apiKey: "public_kW2K8p74scXyVukAGveTHezNswqJ", // your Bytescale key
       maxFileCount: 1,
       mimeTypes: ["image/*", "application/pdf"],
       __filename:`${parcelId}.pdf`,
