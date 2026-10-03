@@ -1,0 +1,114 @@
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 25, 'rankSpacing': 40, 'htmlLabels': true}, 'theme': 'neutral'}}%%
+flowchart TD
+
+%% ===================== BROWSER LAYER =====================
+subgraph BROWSER["Browser - React 19 SPA (Vite + TS + Tailwind + shadcn/ui)"]
+    direction TB
+    IDX["Index.tsx - app controller<br/>login / dashboard / registry / transfer / admin"]
+    LOGIN["LoginView<br/>email login + wallet connect"]
+    DASH["DashboardView + MetricsCard<br/>portfolio stats"]
+    REG["RegistryView<br/>register parcel + document upload"]
+    TRANSFER["TransferView<br/>multi-party consent transfers"]
+    ADMIN["AdminView<br/>verify / reject parcels"]
+    MAP["MapDraw + MapSimulator<br/>Leaflet + leaflet-draw polygon picker"]
+    DOC["DocumentUpload + LandList<br/>DocumentPreviewModal"]
+    WALLET_CTX["WalletContext<br/>signer + address"]
+
+    IDX --> LOGIN
+    IDX --> DASH
+    IDX --> REG
+    IDX --> TRANSFER
+    IDX --> ADMIN
+    DASH --> MAP
+    REG --> DOC
+    REG --> WALLET_CTX
+    TRANSFER --> WALLET_CTX
+    LOGIN --> WALLET_CTX
+end
+
+%% ===================== SERVICE LAYER =====================
+subgraph SERVICE["Service Layer (src/blockchain + src/utils)"]
+    direction TB
+    TANSTACK["TanStack Query cache"]
+    CHAIN_SVC["chainService.ts<br/>fetchAllParcels event replay<br/>listenForParcelEvents subscriptions"]
+    CONTRACT_CFG["contractConfig.ts<br/>address + ABI + bytecode"]
+    PROVIDER["provider.ts<br/>JsonRpcProvider hardhat :8545<br/>ensureCorrectChain chainId 1337"]
+    GEOHASH["geohash.ts<br/>turf polygon sampling -> ngeohash cells<br/>computeBoundaryAnchor via keccak256"]
+    AUTH_STORAGE["authStorage.ts<br/>localStorage fallback users"]
+    FIREBASE["Firebase Auth + Firestore<br/>users + parcels sync"]
+    FIRESTORE_DB[("Firestore DB<br/>users . parcels")]
+
+    CONTRACT_CFG -->|ethers Contract| PROVIDER
+    CONTRACT_CFG -->|ethers Contract| GEOHASH
+    CONTRACT_CFG --> AUTH_STORAGE
+    AUTH_STORAGE --> FIREBASE
+    FIREBASE --> FIRESTORE_DB
+    CHAIN_SVC -->|syncParcel mirror| FIREBASE
+end
+
+IDX --> TANSTACK
+CHAIN_SVC -->|LandParcel array| IDX
+REG -->|geohashes + metadata + docHash| CONTRACT_CFG
+MAP -->|documentHash + coords| GEOHASH
+WALLET_CTX --> CONTRACT_CFG
+ADMIN --> CONTRACT_CFG
+TRANSFER --> CONTRACT_CFG
+
+%% ===================== EXTERNAL / IDENTITY =====================
+subgraph EXTERNAL["External - Identity & Wallet"]
+    direction TB
+    DIGILOCKER_API["DigiLocker API<br/>Aadhaar KYC + land records + RoR check"]
+    DIGILOCKER_GOV[("DigiLocker gov API")]
+    METAMASK(("MetaMask wallet"))
+
+    DIGILOCKER_API --> DIGILOCKER_GOV
+    DIGILOCKER_API -->|tx via signer| METAMASK
+end
+
+PROVIDER --> DIGILOCKER_API
+GEOHASH --> DIGILOCKER_API
+
+%% ===================== DEPLOYMENT TOOLING =====================
+subgraph DEPLOY["Deployment Tooling"]
+    direction TB
+    HARDHAT_TOOLCHAIN["Hardhat toolchain<br/>hardhat.config.cjs + deploy.cjs/ts<br/>OpenZeppelin deps"]
+end
+
+%% ===================== EVM NETWORK =====================
+subgraph EVM["EVM Network - Hardhat (local blockchain, chainId 1337)"]
+    direction TB
+    CONTRACT["ResQLandRegistry.sol<br/>Solidity 0.8.20<br/>AccessControl + Pausable + ReentrancyGuard"]
+    ROLES["VERIFIER_ROLE + REGISTRAR_ROLE<br/>DEFAULT_ADMIN grants + pause switch"]
+    REGISTER_LAND["registerLand - on-chain checks<br/>geohash collision index<br/>occupiedGeohashes<br/>boundary anchor recomputed + compared"]
+    PARCELS_MAP["parcels map - Pending / Verified / Rejected / Transferred<br/>documentHash + boundaryAnchor + geohashes"]
+    TRANSFER_PROTOCOL["Transfer protocol<br/>initiate / accept / approve / challenge<br/>finalize / resolveChallenge / cancel<br/>escrow 0.01 ETH + 7-day window"]
+    EVENTS["Events emitted<br/>LandRegistered . LandVerified . LandRejected<br/>OwnershipTransferred . TransferInitiated . TransferFinalized"]
+    SUBGRAPH["Graph Subgraph<br/>schema.graphql + mapping.ts indexes events"]
+
+    CONTRACT --> ROLES
+    CONTRACT --> REGISTER_LAND
+    CONTRACT --> PARCELS_MAP
+    CONTRACT --> TRANSFER_PROTOCOL
+    CONTRACT --> EVENTS
+    EVENTS --> SUBGRAPH
+end
+
+METAMASK -->|signed tx| CONTRACT
+HARDHAT_TOOLCHAIN -->|deploys| CONTRACT
+PROVIDER -->|readonly JSON-RPC 127.0.0.1:8545| CONTRACT
+EVENTS -->|mirror query| CHAIN_SVC
+
+%% ===================== STYLES =====================
+classDef browser fill:#eef3fb,stroke:#4a6fa5,stroke-width:1px,color:#1a2b3c;
+classDef service fill:#f2f2f2,stroke:#888888,stroke-width:1px,color:#222222;
+classDef store fill:#e9e9e9,stroke:#999999,stroke-width:1px,color:#222222,stroke-dasharray: 2 2;
+classDef external fill:#fdf2e3,stroke:#c8955b,stroke-width:1px,color:#3a2a15;
+classDef deploy fill:#fdf6e3,stroke:#b8860b,stroke-width:1px,color:#3a2f10;
+classDef evm fill:#eaf7ee,stroke:#4a9463,stroke-width:1px,color:#123a1f;
+
+class IDX,LOGIN,DASH,REG,TRANSFER,ADMIN,MAP,DOC,WALLET_CTX browser;
+class TANSTACK,CHAIN_SVC,CONTRACT_CFG,PROVIDER,GEOHASH,AUTH_STORAGE,FIREBASE service;
+class FIRESTORE_DB,DIGILOCKER_GOV store;
+class DIGILOCKER_API,METAMASK external;
+class HARDHAT_TOOLCHAIN deploy;
+class CONTRACT,ROLES,REGISTER_LAND,PARCELS_MAP,TRANSFER_PROTOCOL,EVENTS,SUBGRAPH evm;

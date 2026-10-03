@@ -1,0 +1,211 @@
+// import { useState } from "react";
+// import { CheckCircle, XCircle, Eye, ShieldCheck, FileText, ExternalLink, Clock } from "lucide-react";
+// import { Card } from "@/components/ui/card";
+// import { Button } from "@/components/ui/button";
+// import { toast } from "sonner";
+// import MapSimulator from "./MapSimulator";
+
+// interface AdminViewProps {
+//   parcels: any[];
+//   verifyLand: (landId: string, approved: boolean) => Promise<void>;
+// }
+
+// const AdminView = ({ parcels, verifyLand }: AdminViewProps) => {
+//   const [selectedParcel, setSelectedParcel] = useState<any>(null);
+//   const [isProcessing, setIsProcessing] = useState(false);
+
+//   // Grouping parcels for better organization
+//   const pendingParcels = parcels.filter(p => p.status === 'pending' || !p.status);
+//   const verifiedParcels = parcels.filter(p => p.status === 'verified');
+
+// //   const handleAction = async (landId: string, approved: boolean) => {
+// //     setIsProcessing(true);
+// //     try {
+// //       await verifyLand(landId, approved);
+// //       toast.success(approved ? "Parcel verified!" : "Parcel rejected.");
+// //       // Refresh local selection view if it was the one being acted on
+// //       if (selectedParcel?.landId === landId) {
+// //         setSelectedParcel({ ...selectedParcel, status: approved ? 'verified' : 'rejected' });
+// //       }
+// //     } catch (error) {
+// //       toast.error("Failed to update status.");
+// //     } finally {
+// //       setIsProcessing(false);
+// //     }
+// //   };
+
+
+// const handleAction = async (landId: string, approved: boolean) => {
+//   setIsProcessing(true);
+//   try {
+//     await verifyLand(landId, approved);
+    
+//     if (approved) {
+//       toast.success("Parcel verified!");
+//       // If approved, update the current view to show 'verified' status
+//       if (selectedParcel?.landId === landId) {
+//         setSelectedParcel({ ...selectedParcel, status: 'verified' });
+//       }
+//     } else {
+//       toast.error("Parcel rejected and removed.");
+//       // ✅ FIX: If rejected, clear the selection. 
+//       // This forces MapSimulator to reset and the boundaries to disappear.
+//       setSelectedParcel(null);
+//     }
+//   } catch (error) {
+//     toast.error("Failed to update status.");
+//   } finally {
+//     setIsProcessing(false);
+//   }
+// };
+//   return (
+//     <div className="container mx-auto px-4 py-8 animate-in fade-in duration-500">
+//       <div className="flex items-center gap-3 mb-8">
+//         <div className="p-3 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+//           <ShieldCheck className="w-8 h-8 text-white" />
+//         </div>
+//         <div>
+//           <h2 className="text-3xl font-bold text-foreground">Admin Verification</h2>
+//           <p className="text-muted-foreground">Validate blockchain records against legal documentation.</p>
+//         </div>
+//       </div>
+
+//       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+//         {/* 📋 Queue List */}
+//         <div className="lg:col-span-2 space-y-6">
+//           <Card className="overflow-hidden border-accent/10 shadow-corporate">
+//             <div className="bg-secondary/50 p-4 border-b flex justify-between items-center">
+//               <h3 className="font-semibold flex items-center gap-2">
+//                 <Clock className="w-4 h-4 text-blue-500" /> Pending Review
+//               </h3>
+//               <span className="text-xs font-bold bg-blue-500/10 text-blue-600 px-2 py-1 rounded">
+//                 {pendingParcels.length} Items
+//               </span>
+//             </div>
+            
+//             <div className="overflow-x-auto">
+//               <table className="w-full text-left">
+//                 <thead className="text-xs font-bold uppercase text-muted-foreground bg-secondary/30">
+//                   <tr>
+//                     <th className="p-4">Land ID</th>
+//                     <th className="p-4">Location</th>
+//                     <th className="p-4">Owner (Address)</th>
+//                     <th className="p-4 text-right">Action</th>
+//                   </tr>
+//                 </thead>
+//                 <tbody className="divide-y divide-border">
+//                   {pendingParcels.length === 0 ? (
+//                     <tr>
+//                       <td colSpan={4} className="p-12 text-center text-muted-foreground italic">
+//                         All clear! No pending verifications.
+//                       </td>
+//                     </tr>
+//                   ) : (
+//                     pendingParcels.map((parcel) => (
+//                       <tr 
+//                         key={parcel.id} 
+//                         className={`hover:bg-accent/5 transition-colors cursor-pointer ${selectedParcel?.landId === parcel.landId ? 'bg-accent/10 border-l-4 border-l-blue-500' : ''}`}
+//                         onClick={() => setSelectedParcel(parcel)}
+//                       >
+//                         <td className="p-4 font-mono text-sm font-bold">{parcel.landId}</td>
+//                         <td className="p-4 text-sm">{parcel.location}</td>
+//                         <td className="p-4 text-xs font-mono text-muted-foreground">
+//                           {parcel.owner.slice(0, 8)}...{parcel.owner.slice(-6)}
+//                         </td>
+//                         <td className="p-4 text-right">
+//                           <Button variant="ghost" size="sm" className="hover:bg-blue-500/10 hover:text-blue-600">
+//                             <Eye className="w-4 h-4 mr-2" /> Inspect
+//                           </Button>
+//                         </td>
+//                       </tr>
+//                     ))
+//                   )}
+//                 </tbody>
+//               </table>
+//             </div>
+//           </Card>
+
+//           {/* History Section (Optional) */}
+//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+//             <h4 className="col-span-full text-sm font-bold text-muted-foreground uppercase tracking-wider">Recently Processed</h4>
+//             {verifiedParcels.slice(0, 4).map(p => (
+//               <Card key={p.id} className="p-3 flex justify-between items-center bg-secondary/20">
+//                 <span className="text-xs font-mono">ID: {p.landId}</span>
+//                 <span className="text-[10px] font-bold text-green-600 uppercase">Verified</span>
+//               </Card>
+//             ))}
+//           </div>
+//         </div>
+
+//         {/* 🔍 Inspection Sidebar */}
+//         <div className="space-y-6">
+//           <h3 className="font-bold text-xl">Inspection Panel</h3>
+          
+//           {selectedParcel ? (
+//             <div className="space-y-4 animate-in slide-in-from-right duration-300">
+//               {/* Map Preview */}
+//               <MapSimulator selectedParcel={selectedParcel} />
+              
+//               <Card className="p-5 space-y-5 border-blue-500/20 shadow-lg">
+//                 <div>
+//                   <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Legal Document (Bytescale)</label>
+//                   {selectedParcel.documentUrl ? (
+//                     <div className="mt-2 p-3 bg-secondary rounded-lg border flex items-center justify-between group">
+//                       <div className="flex items-center gap-2 overflow-hidden">
+//                         <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
+//                         <span className="text-xs truncate font-medium">land_deed_{selectedParcel.landId}.pdf</span>
+//                       </div>
+//                       <a 
+//                         href={selectedParcel.documentUrl} 
+//                         target="_blank" 
+//                         rel="noreferrer"
+//                         className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+//                       >
+//                         <ExternalLink className="w-4 h-4" />
+//                       </a>
+//                     </div>
+//                   ) : (
+//                     <div className="mt-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg text-red-600 text-xs italic">
+//                       No document uploaded for this parcel.
+//                     </div>
+//                   )}
+//                 </div>
+
+//                 <div className="pt-2 flex gap-3">
+//                   <Button 
+//                     variant="outline" 
+//                     className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
+//                     disabled={isProcessing}
+//                     onClick={() => handleAction(selectedParcel.landId, false)}
+//                   >
+//                     <XCircle className="w-4 h-4 mr-2" /> Reject
+//                   </Button>
+//                   <Button 
+//                     className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-500/20"
+//                     disabled={isProcessing || !selectedParcel.documentUrl || selectedParcel.status === 'verified'}
+//                     onClick={() => handleAction(selectedParcel.landId, true)}
+//                   >
+//                     <CheckCircle className="w-4 h-4 mr-2" /> Verify
+//                   </Button>
+//                 </div>
+//               </Card>
+//             </div>
+//           ) : (
+//             <Card className="h-[450px] flex flex-col items-center justify-center border-dashed border-2 p-8 text-center bg-secondary/10">
+//               <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">
+//                 <FileText className="w-8 h-8 text-muted-foreground" />
+//               </div>
+//               <p className="text-muted-foreground text-sm">
+//                 Select a parcel from the verification queue to review details.
+//               </p>
+//             </Card>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default AdminView;
+
+

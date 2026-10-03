@@ -1,0 +1,572 @@
+// import { useState, useEffect } from "react";
+// import { toast } from "sonner";
+// import {
+//   BrowserProvider,
+//   Contract,
+//   AbstractProvider,
+// } from "ethers";
+// import Header from "@/components/Header";
+// import LoginView from "@/components/LoginView";
+// import DashboardView from "@/components/DashboardView";
+// import RegistryView from "@/components/RegistryView";
+// import TransferView from "@/components/TransferView";
+// import { authStorage } from "@/utils/authStorage";
+
+// // ✅ Smart Contract (from Ganache/Hardhat deployment)
+// const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+// const CONTRACT_ABI = [
+//   {
+//     inputs: [
+//       { internalType: "uint256", name: "landId", type: "uint256" },
+//       { internalType: "address", name: "owner", type: "address" },
+//       { internalType: "string", name: "metadata", type: "string" },
+//     ],
+//     name: "registerLand",
+//     outputs: [],
+//     stateMutability: "nonpayable",
+//     type: "function",
+//   },
+//   {
+//     inputs: [{ internalType: "uint256", name: "landId", type: "uint256" }],
+//     name: "getLandOwner",
+//     outputs: [{ internalType: "address", name: "", type: "address" }],
+//     stateMutability: "view",
+//     type: "function",
+//   },
+//   {
+//     inputs: [
+//       { internalType: "uint256", name: "landId", type: "uint256" },
+//       { internalType: "address", name: "newOwner", type: "address" },
+//     ],
+//     name: "transferOwnership",
+//     outputs: [],
+//     stateMutability: "nonpayable",
+//     type: "function",
+//   },
+// ];
+
+// const Index = () => {
+//   const [theme, setTheme] = useState<"light" | "dark">(() => {
+//     const saved = localStorage.getItem("theme");
+//     return (saved as "light" | "dark") || "light";
+//   });
+
+//   const [currentPage, setCurrentPage] = useState<
+//     "login" | "dashboard" | "registry" | "transfer"
+//   >("login");
+
+//   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+//   const [userEmail, setUserEmail] = useState<string | null>(null);
+//   const [provider, setProvider] = useState<AbstractProvider | null>(null);
+//   const [contract, setContract] = useState<Contract | null>(null);
+
+//   // ✅ Restore session
+//   useEffect(() => {
+//     const currentUser = authStorage.getCurrentUser();
+//     if (currentUser) {
+//       setUserEmail(currentUser.email);
+//       if (currentUser.walletAddress) {
+//         setWalletAddress(currentUser.walletAddress);
+//         setCurrentPage("dashboard");
+//       }
+//     }
+//   }, []);
+
+//   // ✅ Theme toggle
+//   useEffect(() => {
+//     document.documentElement.classList.toggle("dark", theme === "dark");
+//     localStorage.setItem("theme", theme);
+//   }, [theme]);
+
+//   const toggleTheme = () => {
+//     setTheme((prev) => (prev === "light" ? "dark" : "light"));
+//   };
+
+//   // ✅ Connect MetaMask Wallet
+//   const connectWallet = async () => {
+//     try {
+//       if (!window.ethereum) {
+//         toast.error("MetaMask is not installed. Please install it.");
+//         return;
+//       }
+
+//       const accounts = await window.ethereum.request({
+//         method: "eth_requestAccounts",
+//       });
+//       const address = accounts[0];
+
+//       const chainId = await window.ethereum.request({ method: "eth_chainId" });
+//       if (chainId !== "0x539") {
+//         toast.warning("Switching MetaMask to Ganache network...");
+//         await window.ethereum.request({
+//           method: "wallet_switchEthereumChain",
+//           params: [{ chainId: "0x539" }],
+//         });
+//       }
+
+//       const provider = new BrowserProvider(window.ethereum);
+//       const signer = await provider.getSigner();
+//       const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+//       setWalletAddress(address);
+//       setProvider(provider);
+//       setContract(c);
+
+//       authStorage.updateCurrentUser({ walletAddress: address });
+//       setCurrentPage("dashboard");
+
+//       toast.success("✅ Wallet connected successfully!");
+//       console.log("Connected to:", address);
+//     } catch (error: any) {
+//       console.error("Wallet connection error:", error);
+//       toast.error(error.message || "Failed to connect MetaMask");
+//     }
+//   };
+
+//   // ✅ Improved Register Land Function
+//   const registerLand = async (
+//     landId: string,
+//     owner: string,
+//     location: string,
+//     coordinates: { lat: number; lng: number },
+//     documentUrl?: string,
+//     polygonCoords?: [number, number][]
+//   ) => {
+//     try {
+//       if (!contract) {
+//         toast.error("Smart contract not initialized. Connect your wallet first.");
+//         throw new Error("contract-not-initialized");
+//       }
+
+//       toast.loading("Registering land on blockchain...");
+
+//       // Ensure numeric Land ID
+//       const landIdNumber = parseInt(landId.replace(/\D/g, "") || "0", 10);
+//       if (isNaN(landIdNumber) || landIdNumber <= 0) {
+//         toast.dismiss();
+//         toast.error("Please enter a valid numeric Land ID (e.g., 101)");
+//         throw new Error("invalid-land-id");
+//       }
+
+//       const metadata = JSON.stringify({
+//         location,
+//         coordinates,
+//         documentUrl,
+//         polygonCoords,
+//       });
+
+//       console.log("⏳ Sending transaction...");
+//       const tx = await contract.registerLand(landIdNumber, owner, metadata);
+//       console.log("Transaction sent:", tx.hash);
+
+//       const receipt = await tx.wait(1); // Wait for 1 confirmation
+//       console.log("Transaction receipt:", receipt);
+
+//       if (receipt.status === 1 || receipt.status === "0x1") {
+//         toast.dismiss();
+//         toast.success("✅ Land registered successfully!");
+//         return { success: true, txHash: tx.hash };
+//       } else {
+//         toast.dismiss();
+//         toast.error("Transaction mined but failed");
+//         throw new Error("tx-failed");
+//       }
+//     } catch (err: any) {
+//       console.error("registerLand error:", err);
+
+//       toast.dismiss();
+//       if (err?.code === 4001 || err?.message?.toLowerCase?.().includes("user rejected")) {
+//         toast.error("Transaction rejected by user.");
+//       } else if (err?.reason || err?.message) {
+//         toast.error(err.reason || err.message);
+//       } else {
+//         toast.error("Transaction failed or timed out.");
+//       }
+
+//       throw err;
+//     }
+//   };
+
+//   // Transfer Ownership
+//   const transferOwnership = async (landId: string, newOwner: string) => {
+//     try {
+//       if (!contract) {
+//         toast.error("Smart contract not initialized. Connect your wallet first.");
+//         return;
+//       }
+
+//       toast.loading("Transferring ownership...");
+
+//       const tx = await contract.transferOwnership(landId, newOwner);
+//       const receipt = await tx.wait(1);
+
+//       toast.dismiss();
+//       if (receipt.status === 1 || receipt.status === "0x1") {
+//         toast.success("Ownership transferred successfully!");
+//         console.log("Transfer Tx:", tx.hash);
+//       } else {
+//         toast.error("⚠️ Transfer failed");
+//       }
+//     } catch (error: any) {
+//       toast.dismiss();
+//       console.error("Transfer error:", error);
+//       toast.error(error.message || "Failed to transfer ownership");
+//     }
+//   };
+
+//   //  Handle user login success
+//   const handleAuthSuccess = (email: string) => {
+//     setUserEmail(email);
+//     setCurrentPage("dashboard");
+//   };
+
+//   return (
+//     <div className="min-h-screen bg-background transition-smooth">
+//       {currentPage !== "login" && (
+//         <Header theme={theme} toggleTheme={toggleTheme} walletAddress={walletAddress} />
+//       )}
+
+//       {currentPage === "login" && (
+//         <>
+//           <Header theme={theme} toggleTheme={toggleTheme} walletAddress={null} />
+//           <LoginView connectWallet={connectWallet} onAuthSuccess={handleAuthSuccess} />
+//         </>
+//       )}
+
+//       {currentPage === "dashboard" && (
+//         <DashboardView
+//           setCurrentPage={(page: string) =>
+//             setCurrentPage(page as "login" | "dashboard" | "registry" | "transfer")
+//           }
+//           walletAddress={walletAddress}
+//         />
+//       )}
+
+//       {currentPage === "registry" && (
+//         <RegistryView walletAddress={walletAddress} registerLand={registerLand} />
+//       )}
+
+//       {currentPage === "transfer" && (
+//         <TransferView walletAddress={walletAddress} transferOwnership={transferOwnership} />
+//       )}
+//     </div>
+//   );
+// };
+
+// // Extend window type for MetaMask
+// declare global {
+//   interface Window {
+//     ethereum?: any;
+//   }
+// }
+
+// export default Index;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import { useState, useEffect, useCallback } from "react";
+// import { toast } from "sonner";
+// import {
+//   BrowserProvider,
+//   Contract,
+//   AbstractProvider,
+// } from "ethers";
+// import Header from "@/components/Header";
+// import LoginView from "@/components/LoginView";
+// import DashboardView from "@/components/DashboardView";
+// import RegistryView from "@/components/RegistryView";
+// import TransferView from "@/components/TransferView";
+// import AdminView from "@/components/AdminView"; // ✅ Import the new AdminView
+// import { authStorage } from "@/utils/authStorage";
+
+// // ✅ Smart Contract Configuration
+// const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+// const ADMIN_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"; // ✅ Replace with your Ganache Admin Address
+
+// const CONTRACT_ABI = [
+//   {
+//     inputs: [
+//       { internalType: "uint256", name: "landId", type: "uint256" },
+//       { internalType: "address", name: "owner", type: "address" },
+//       { internalType: "string", name: "metadata", type: "string" },
+//     ],
+//     name: "registerLand",
+//     outputs: [],
+//     stateMutability: "nonpayable",
+//     type: "function",
+//   },
+//   {
+//     inputs: [{ internalType: "uint256", name: "landId", type: "uint256" }],
+//     name: "getLandOwner",
+//     outputs: [{ internalType: "address", name: "", type: "address" }],
+//     stateMutability: "view",
+//     type: "function",
+//   },
+//   {
+//     inputs: [
+//       { internalType: "uint256", name: "landId", type: "uint256" },
+//       { internalType: "address", name: "newOwner", type: "address" },
+//     ],
+//     name: "transferOwnership",
+//     outputs: [],
+//     stateMutability: "nonpayable",
+//     type: "function",
+//   },
+// ];
+
+// const Index = () => {
+//   const [theme, setTheme] = useState<"light" | "dark">(() => {
+//     const saved = localStorage.getItem("theme");
+//     return (saved as "light" | "dark") || "light";
+//   });
+
+//   // ✅ Added "admin" to the page routing types
+//   const [currentPage, setCurrentPage] = useState<
+//     "login" | "dashboard" | "registry" | "transfer" | "admin"
+//   >("login");
+
+//   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+//   const [userEmail, setUserEmail] = useState<string | null>(null);
+//   const [provider, setProvider] = useState<AbstractProvider | null>(null);
+//   const [contract, setContract] = useState<Contract | null>(null);
+
+//   // ✅ Local state for tracking all parcels (for Admin view & filtering)
+//   const [parcels, setParcels] = useState<any[]>(() => {
+//     const saved = localStorage.getItem("landParcels");
+//     return saved ? JSON.parse(saved) : [];
+//   });
+
+//   // ✅ Restore session
+//   useEffect(() => {
+//     const currentUser = authStorage.getCurrentUser();
+//     if (currentUser) {
+//       setUserEmail(currentUser.email);
+//       if (currentUser.walletAddress) {
+//         setWalletAddress(currentUser.walletAddress);
+//         setCurrentPage("dashboard");
+//       }
+//     }
+//   }, []);
+
+//   // ✅ Theme toggle
+//   useEffect(() => {
+//     document.documentElement.classList.toggle("dark", theme === "dark");
+//     localStorage.setItem("theme", theme);
+//   }, [theme]);
+
+//   const toggleTheme = () => {
+//     setTheme((prev) => (prev === "light" ? "dark" : "light"));
+//   };
+
+//   // ✅ Connect MetaMask Wallet
+//   const connectWallet = async () => {
+//     try {
+//       if (!window.ethereum) {
+//         toast.error("MetaMask is not installed. Please install it.");
+//         return;
+//       }
+
+//       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+//       const address = accounts[0];
+
+//       const chainId = await window.ethereum.request({ method: "eth_chainId" });
+//       if (chainId !== "0x539") {
+//         toast.warning("Switching MetaMask to Ganache network...");
+//         await window.ethereum.request({
+//           method: "wallet_switchEthereumChain",
+//           params: [{ chainId: "0x539" }],
+//         });
+//       }
+
+//       const provider = new BrowserProvider(window.ethereum);
+//       const signer = await provider.getSigner();
+//       const c = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+//       setWalletAddress(address);
+//       setProvider(provider);
+//       setContract(c);
+
+//       authStorage.updateCurrentUser({ walletAddress: address });
+//       setCurrentPage("dashboard");
+
+//       toast.success("✅ Wallet connected successfully!");
+//     } catch (error: any) {
+//       toast.error(error.message || "Failed to connect MetaMask");
+//     }
+//   };
+
+//   // ✅ Modified Register Land: Adds "pending" status to metadata
+//   const registerLand = async (
+//     landId: string,
+//     owner: string,
+//     location: string,
+//     coordinates: { lat: number; lng: number },
+//     documentUrl?: string,
+//     polygonCoords?: [number, number][]
+//   ) => {
+//     try {
+//       if (!contract) {
+//         toast.error("Smart contract not initialized. Connect your wallet first.");
+//         throw new Error("contract-not-initialized");
+//       }
+
+//       toast.loading("Registering land on blockchain...");
+
+//       const landIdNumber = parseInt(landId.replace(/\D/g, "") || "0", 10);
+//       if (isNaN(landIdNumber) || landIdNumber <= 0) {
+//         toast.dismiss();
+//         toast.error("Please enter a valid numeric Land ID");
+//         throw new Error("invalid-land-id");
+//       }
+
+//       // ✅ Metadata now includes a 'status' field for admin verification
+//       const metadata = JSON.stringify({
+//         location,
+//         coordinates,
+//         documentUrl,
+//         polygonCoords,
+//         status: "pending",
+//         timestamp: new Date().toISOString()
+//       });
+
+//       const tx = await contract.registerLand(landIdNumber, owner, metadata);
+//       await tx.wait(1);
+
+//       // ✅ Update Local State & Storage
+//       const newParcel = {
+//         id: Date.now().toString(),
+//         landId,
+//         owner,
+//         location,
+//         coordinates,
+//         documentUrl,
+//         polygonCoords,
+//         status: "pending",
+//         timestamp: new Date().toISOString()
+//       };
+
+//       const updated = [...parcels, newParcel];
+//       setParcels(updated);
+//       localStorage.setItem("landParcels", JSON.stringify(updated));
+
+//       toast.dismiss();
+//       toast.success("✅ Land registered! Pending Admin verification.");
+//       return { success: true, txHash: tx.hash };
+//     } catch (err: any) {
+//       toast.dismiss();
+//       toast.error(err.reason || "Transaction failed");
+//       throw err;
+//     }
+//   };
+
+//   // ✅ New: Admin Verification Function
+//   const verifyLand = async (landId: string, approved: boolean) => {
+//     const updated = parcels.map((p) => 
+//       p.landId === landId ? { ...p, status: approved ? "verified" : "rejected" } : p
+//     );
+//     setParcels(updated);
+//     localStorage.setItem("landParcels", JSON.stringify(updated));
+//   };
+
+//   // ✅ Transfer Ownership
+//   const transferOwnership = async (landId: string, newOwner: string) => {
+//     try {
+//       if (!contract) return;
+//       toast.loading("Transferring ownership...");
+//       const tx = await contract.transferOwnership(landId, newOwner);
+//       await tx.wait(1);
+      
+//       // Update local state to reflect new owner
+//       const updated = parcels.map(p => p.landId === landId ? { ...p, owner: newOwner } : p);
+//       setParcels(updated);
+//       localStorage.setItem("landParcels", JSON.stringify(updated));
+
+//       toast.dismiss();
+//       toast.success("Ownership transferred successfully!");
+//     } catch (error: any) {
+//       toast.dismiss();
+//       toast.error(error.message || "Transfer failed");
+//     }
+//   };
+
+//   // Check if current user is Admin
+//   const isAdmin = walletAddress?.toLowerCase() === ADMIN_WALLET.toLowerCase();
+
+//   return (
+//     <div className="min-h-screen bg-background transition-smooth">
+//       {currentPage !== "login" && (
+//         <Header theme={theme} toggleTheme={toggleTheme} walletAddress={walletAddress} />
+//       )}
+
+//       {currentPage === "login" && (
+//         <>
+//           <Header theme={theme} toggleTheme={toggleTheme} walletAddress={null} />
+//           <LoginView connectWallet={connectWallet} onAuthSuccess={(email) => { setUserEmail(email); setCurrentPage("dashboard"); }} />
+//         </>
+//       )}
+
+//       {currentPage === "dashboard" && (
+//   <DashboardView
+//     setCurrentPage={(page: string) => setCurrentPage(page as any)}
+//     walletAddress={walletAddress}
+//     isAdmin={isAdmin}
+//     parcels={parcels}
+//     logout={() => {
+//       // ✅ Change clearSession() to logoutUser()
+//       authStorage.logoutUser(); 
+//       setWalletAddress(null);
+//       setCurrentPage("login");
+//       toast.success("Logged out successfully");
+//     }}
+//   />
+// )}
+
+//       {currentPage === "registry" && (
+//         <RegistryView walletAddress={walletAddress} registerLand={registerLand} />
+//       )}
+
+//       {currentPage === "transfer" && (
+//         <TransferView walletAddress={walletAddress} transferOwnership={transferOwnership} />
+//       )}
+
+//       {/* ✅ New Admin Route */}
+//       {currentPage === "admin" && (
+//         <AdminView parcels={parcels} verifyLand={verifyLand} />
+//       )}
+//     </div>
+//   );
+// };
+
+// declare global {
+//   interface Window {
+//     ethereum?: any;
+//   }
+// }
+
+// export default Index;
+
+
+
+
+
+
+
+
+
+
